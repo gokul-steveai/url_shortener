@@ -1,10 +1,13 @@
-from sqlalchemy import select
+from typing import Optional
+
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.redis_service import RedisService
 from app.models.url import URL
 from app.services.shortener import ShortenerService
 import json
 from fastapi.encoders import jsonable_encoder
+from app.utils.pagination import build_paginated_response
 
 
 class CRUDURL:
@@ -48,19 +51,24 @@ class CRUDURL:
         await db.refresh(new_url)
 
         # Invalidate the cache for all links
-        await self.redis_client.invalidate("all_links")
+        await self.redis_client.bump_version()
 
         return new_url
 
     async def get_all(
         self, db: AsyncSession, page: int = 1, limit: int = 20
-    ) -> list[URL]:
+    ) -> list[dict]:
+        total = select(func.count(URL.id))
+        total = await db.execute(total)
+        total = total.scalar()
+
         # Check if the links are cached
         cached = await self.redis_client.get_paginated_links(page, limit)
 
         if cached:
-            # Return the value from Redis
-            return cached
+            return build_paginated_response(
+                jsonable_encoder(cached), total, page, limit
+            )
 
         query = select(URL).offset((page - 1) * limit).limit(limit)
         result = await db.execute(query)
@@ -69,4 +77,24 @@ class CRUDURL:
         # Cache the links for 1 hour
         await self.redis_client.set_paginated_links(page, limit, links, len(links))
 
-        return links
+        return build_paginated_response(jsonable_encoder(links), total, page, limit)
+
+    async def get_and_increment_clicks(
+        self, db: AsyncSession, short_id: str
+    ) -> Optional[str]:
+        query = (
+            update(URL)
+            .where(URL.short_id == short_id)
+            .values(clicks=URL.clicks + 1)
+            .returning(URL.original_url)
+        )
+        result = await db.execute(query)
+        await db.commit()
+
+        target_url = result.scalar_one_or_none()
+
+        if target_url:
+            await self.redis_client.invalidate(f"link:obj:{short_id}")
+            await self.redis_client.bump_version()
+
+        return target_url

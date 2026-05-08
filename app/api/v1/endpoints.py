@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.url import URLCreate, URLResponse
 from app.crud.url import CRUDURL
 from app.api.deps import get_db, get_redis_client
 import redis.asyncio as redis
 from app.core.config import settings
+from app.models.url import URL
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ async def create_short_url(
         # Return the existing short URL
         return URLResponse(
             target_url=payload.target_url,
-            short_url=f"{settings.BASE_URL}/{result.short_id}",
+            short_url=f"{settings.API_URL}/{result.short_id}",
             expires_at=result.expires_at,
         )
 
@@ -41,10 +42,10 @@ async def get_all_links(
 ):
     # Query all links from the database
     crud = CRUDURL(redis_client)
-    links = await crud.get_all(db, page, per_page)
+    response = await crud.get_all(db, page, per_page)
 
     # Return as a list of dictionaries
-    return links
+    return response
 
 
 @router.get("/{short_id}")
@@ -58,8 +59,8 @@ async def redirect_url(
     """
     crud = CRUDURL(redis_client)
 
-    # Try to get the URL from Redis or Database
-    original_url = await crud.get_by_short_id(db, short_id)
+    # Increment clicks and get the URL
+    original_url = await crud.get_and_increment_clicks(db, short_id)
 
     if not original_url:
         raise HTTPException(

@@ -1,8 +1,6 @@
-from fastapi import Depends
 from redis.asyncio import Redis
 from app.services.redis_service import RedisService
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
 # 1. Create a singleton-style Redis client (usually in main.py or a config file)
