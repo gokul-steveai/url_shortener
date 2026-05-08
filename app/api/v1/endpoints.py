@@ -4,21 +4,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.url import URLCreate, URLResponse
 from app.crud.url import CRUDURL
-from app.core.database import get_db
+from app.api.deps import get_db, get_redis_client
 import redis.asyncio as redis
 from app.core.config import settings
 
 router = APIRouter()
-
-
-# Dependency to get redis client
-async def get_redis_client():
-    client = redis.from_url("redis://localhost:6379/0")
-
-    try:
-        yield client
-    finally:
-        await client.close()
 
 
 @router.post("/shorten", response_model=URLResponse)
@@ -40,6 +30,21 @@ async def create_short_url(
             short_url=f"{settings.BASE_URL}/{result.short_id}",
             expires_at=result.expires_at,
         )
+
+
+@router.get("/links")
+async def get_all_links(
+    page: int = 1,
+    per_page: int = 20,
+    db: AsyncSession = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client),
+):
+    # Query all links from the database
+    crud = CRUDURL(redis_client)
+    links = await crud.get_all(db, page, per_page)
+
+    # Return as a list of dictionaries
+    return links
 
 
 @router.get("/{short_id}")
