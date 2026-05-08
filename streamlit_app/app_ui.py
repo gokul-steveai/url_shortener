@@ -9,7 +9,7 @@ import os
 # =========================================================
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
-PAGE_SIZE = 10
+PAGE_SIZE = 20
 REQUEST_TIMEOUT = 10
 
 # =========================================================

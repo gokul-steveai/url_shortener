@@ -36,13 +36,13 @@ async def create_short_url(
 @router.get("/links")
 async def get_all_links(
     page: int = 1,
-    per_page: int = 20,
+    limit: int = 20,
     db: AsyncSession = Depends(get_db),
     redis_client: redis.Redis = Depends(get_redis_client),
 ):
     # Query all links from the database
     crud = CRUDURL(redis_client)
-    response = await crud.get_all(db, page, per_page)
+    response = await crud.get_all(db, page, limit)
 
     # Return as a list of dictionaries
     return response
