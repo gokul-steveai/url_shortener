@@ -72,3 +72,27 @@ async def redirect_url(
     return RedirectResponse(
         url=original_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT
     )
+
+
+@router.delete("/links/{id}")
+async def delete_url(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client),
+):
+    """
+    Deletes a URL from the database.
+    """
+    crud = CRUDURL(redis_client)
+    result = await crud.delete(db, id)
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="URL not found",
+        )
+
+    return {
+        "message": "URL deleted successfully",
+        "status_code": status.HTTP_200_OK,
+    }

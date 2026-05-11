@@ -1078,6 +1078,19 @@ wheels = [
 ]
 
 [[package]]
+name = "st-copy-to-clipboard"
+version = "0.1.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "streamlit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/6c/bb8ba23b226259974c3a57d122ceccdfd298e6fc3dd9da193716577c8042/st-copy-to-clipboard-0.1.6.tar.gz", hash = "sha256:76634e74384335f64d80469bfe2ca31d15806a140cb89490321764b235acaae6", size = 5046, upload-time = "2024-03-30T16:41:11.581Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/9b/aca2dfca2bebe2850f83bb0536bfb8836ad39ec7f8086299ae8a60c41558/st_copy_to_clipboard-0.1.6-py3-none-any.whl", hash = "sha256:2a3eed0beb550548b04ac8a4e12c0fb09726654a15c302acb035454948b01cd1", size = 6024, upload-time = "2024-03-30T16:41:09.414Z" },
+]
+
+[[package]]
 name = "starlette"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1185,6 +1198,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "redis" },
     { name = "sqlalchemy" },
+    { name = "st-copy-to-clipboard" },
     { name = "streamlit" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -1204,6 +1218,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.14.0" },
     { name = "redis", specifier = ">=7.4.0" },
     { name = "sqlalchemy", specifier = ">=2.0.49" },
+    { name = "st-copy-to-clipboard", specifier = ">=0.1.6" },
     { name = "streamlit", specifier = ">=1.57.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.46.0" },
 ]

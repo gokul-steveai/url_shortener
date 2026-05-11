@@ -1,11 +1,10 @@
 from typing import Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.redis_service import RedisService
 from app.models.url import URL
 from app.services.shortener import ShortenerService
-import json
 from fastapi.encoders import jsonable_encoder
 from app.utils.pagination import build_paginated_response
 
@@ -98,3 +97,18 @@ class CRUDURL:
             await self.redis_client.bump_version()
 
         return target_url
+
+    async def delete(self, db: AsyncSession, id: int):
+        query = delete(URL).where(URL.id == id)
+        result = await db.execute(query)
+        await db.commit()
+
+        if result.rowcount > 0:
+            # 3. Clean up Redis
+            await self.redis_client.invalidate(
+                f"link:object:{id}"
+            )  # Matches your RedisService key pattern
+            await self.redis_client.bump_version()  # Clear paginated lists
+            return True
+
+        return False
