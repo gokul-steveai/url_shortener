@@ -1,13 +1,13 @@
 import asyncio
 import orjson
 from typing import Any, Optional, Callable, Awaitable
-from logging import getLogger
+import logging
 
 from fastapi.encoders import jsonable_encoder
 from redis.asyncio.client import Redis
 from app.utils.pagination import build_paginated_response
 
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class RedisService:
@@ -23,10 +23,14 @@ class RedisService:
         """Generic JSON fetch with auto-cleanup of corrupted data."""
         data = await self.redis.get(key)
         if not data:
+            logger.debug("cache.miss key=%s", key)
             return None
         try:
-            return orjson.loads(data)
+            result = orjson.loads(data)
+            logger.debug("cache.hit key=%s", key)
+            return result
         except orjson.JSONDecodeError:
+            logger.warning("cache.corrupt key=%s — deleting", key)
             await self.redis.delete(key)
             return None
 
@@ -41,7 +45,8 @@ class RedisService:
 
     async def bump_version(self):
         """Instantly invalidates all paginated caches."""
-        await self.redis.incr(self.VERSION_KEY)
+        new_v = await self.redis.incr(self.VERSION_KEY)
+        logger.info("cache.version_bump new_version=%s", new_v)
 
     async def get_paginated_links(self, page: int, limit: int) -> Optional[dict]:
         """Fetch index and hydrated objects using MGET."""
@@ -49,20 +54,21 @@ class RedisService:
         idx = await self.get_json(key)
 
         if not idx or "ids" not in idx:
+            logger.info("cache.miss.paginated page=%s limit=%s", page, limit)
             return None
 
         if not idx["ids"]:
             return build_paginated_response([], 0, page, limit)
 
-        # MGET hydration
         obj_keys = [f"link:obj:{lid}" for lid in idx["ids"]]
         raw_objs = await self.redis.mget(*obj_keys)
 
-        # Fail-fast on partial cache miss
         if any(o is None for o in raw_objs):
+            logger.info("cache.miss.partial page=%s — falling back to DB", page)
             return None
 
         links = [orjson.loads(o) for o in raw_objs]
+        logger.info("cache.hit.paginated page=%s limit=%s count=%s", page, limit, len(links))
         return links
 
     async def set_paginated_links(self, page: int, limit: int, links: list, total: int):
@@ -116,9 +122,5 @@ class RedisService:
         )
 
     async def invalidate(self, key: str):
-        """
-        Removes a specific key from Redis.
-        Used when underlying data (like click counts) changes in the DB.
-        """
         await self.redis.delete(key)
-        logger.debug(f"Invalidated cache key: {key}")
+        logger.info("cache.invalidate key=%s", key)

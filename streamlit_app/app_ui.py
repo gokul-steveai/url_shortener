@@ -3,6 +3,7 @@ import streamlit as st
 import os
 from datetime import datetime
 from st_copy_to_clipboard import st_copy_to_clipboard
+from streamlit_autorefresh import st_autorefresh
 
 # =========================================================
 # CONFIG
@@ -20,6 +21,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# True background polling — fires a rerun every 10s regardless of user interaction
+st_autorefresh(interval=10_000, key="engagement_refresh")
 
 # =========================================================
 # PREMIUM GLASSMORPHISM STYLING
@@ -139,6 +143,25 @@ class APIClient:
     def delete(link_id: str):
         requests.delete(f"{API_URL}/links/{link_id}").raise_for_status()
 
+    @staticmethod
+    def fetch_summary(short_id: str) -> str | None:
+        try:
+            res = requests.get(f"{API_URL}/links/{short_id}/summary", timeout=10)
+            res.raise_for_status()
+            data = res.json()
+            return data.get("summary")
+        except Exception:
+            return None
+
+    @staticmethod
+    def fetch_stats() -> dict:
+        try:
+            res = requests.get(f"{API_URL}/stats", timeout=5)
+            res.raise_for_status()
+            return res.json()
+        except Exception:
+            return {"total_links": 0, "total_clicks": 0}
+
 
 # =========================================================
 # UTILITIES
@@ -189,15 +212,17 @@ with st.container():
                 st.balloons()
                 st.success(f"Short URL: {res['short_url']}")
 
-# 2. Metrics
+# 2. Metrics — live stats from /stats endpoint
 if "page" not in st.session_state:
     st.session_state.page = 1
+
+stats = APIClient.fetch_stats()
 payload = APIClient.fetch(st.session_state.page, PAGE_SIZE)
 items, total = payload.get("items", []), payload.get("total", 0)
 
 m1, m2, m3 = st.columns(3)
-m1.metric("Global Links", total)
-m2.metric("Engagement", sum(i.get("clicks", 0) for i in items), delta="Real-time")
+m1.metric("Global Links", stats["total_links"])
+m2.metric("Total Engagement", stats["total_clicks"])
 m3.metric("Current Page", st.session_state.page)
 
 # 3. Managed Links
@@ -241,7 +266,7 @@ else:
             )
 
             # Native Buttons - These should be indented normally
-            btn_col1, btn_col2, btn_col3, _ = st.columns([1, 1, 1, 4])
+            btn_col1, btn_col2, btn_col3, btn_col4, _ = st.columns([1, 1, 1, 1, 3])
             with btn_col1:
                 st.link_button("🌐 Open", f"{API_URL}/{sid}", use_container_width=True)
             with btn_col2:
@@ -252,6 +277,34 @@ else:
                 )
 
             with btn_col3:
+                with st.popover("🤖 AI Summary", use_container_width=True):
+                    summary_key = f"summary_{link_id}"
+                    if summary_key not in st.session_state:
+                        st.session_state[summary_key] = None
+
+                    if st.button(
+                        "Generate Summary",
+                        key=f"gen_summary_{link_id}",
+                        use_container_width=True,
+                    ):
+                        with st.spinner("Fetching page summary..."):
+                            summary = APIClient.fetch_summary(sid)
+                            st.session_state[summary_key] = summary
+
+                    cached_summary = st.session_state[summary_key]
+                    if cached_summary:
+                        st.markdown(
+                            f"""
+                            <div style="color: #e2e8f0; font-size: 0.85rem; line-height: 1.5; padding: 8px; background: rgba(56, 189, 248, 0.05); border-radius: 8px;">
+                                {cached_summary}
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+                    elif cached_summary is None:
+                        st.caption("Click 'Generate Summary' to get an AI-powered overview of this link's content.")
+
+            with btn_col4:
                 with st.popover("🗑️ Delete", use_container_width=True):
                     if st.button(
                         "Confirm Purge",
@@ -295,3 +348,5 @@ if total_pages > 1:
             if st.button("Next →", use_container_width=True):
                 st.session_state.page += 1
                 st.rerun()
+
+st.caption(f"⟳ Auto-refreshes every 10s · Last updated {datetime.now().strftime('%H:%M:%S')}")

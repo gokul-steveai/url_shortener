@@ -9,6 +9,7 @@ class URLCreate(BaseModel):
 class URLResponse(BaseModel):
     target_url: HttpUrl
     short_url: str
+    summary: Optional[str] = None
     expires_at: Optional[datetime]
 
     class Config:
