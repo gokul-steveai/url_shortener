@@ -20,6 +20,7 @@ _bearer = HTTPBearer()
 async def get_redis_client():
     return RedisService(redis_client)
 
+
 """
 Create dependency for database session
 """
@@ -57,11 +58,16 @@ async def get_current_user(
     user_id = decode_token(credentials.credentials, expected_type="access")
     if not user_id:
         logger.warning("auth.invalid_token")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
 
     user = await CRUDUser.get_by_id(db, user_id)
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+        )
 
     return user
 
@@ -70,6 +76,10 @@ async def require_admin(
     current_user: User = Depends(get_current_user),
 ) -> User:
     if current_user.role != UserRole.ADMIN:
-        logger.warning("auth.forbidden user_id=%s role=%s", current_user.id, current_user.role)
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        logger.warning(
+            "auth.forbidden user_id=%s role=%s", current_user.id, current_user.role
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
+        )
     return current_user

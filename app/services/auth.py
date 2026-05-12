@@ -1,10 +1,11 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Literal, Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
 
+TOKEN_TYPE = Literal["access", "refresh"]
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -21,7 +22,11 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(_normalize(plain), hashed)
 
 
-def _create_token(subject: str, expires_delta: timedelta, token_type: str) -> str:
+def _create_token(
+    subject: str,
+    expires_delta: timedelta,
+    token_type: TOKEN_TYPE,
+) -> str:
     expire = datetime.now(timezone.utc) + expires_delta
     payload = {"sub": subject, "exp": expire, "type": token_type}
     return jwt.encode(
@@ -45,7 +50,7 @@ def create_refresh_token(user_id: int) -> str:
     )
 
 
-def decode_token(token: str, expected_type: str) -> Optional[int]:
+def decode_token(token: str, expected_type: TOKEN_TYPE) -> Optional[int]:
     try:
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
