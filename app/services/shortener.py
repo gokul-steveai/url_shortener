@@ -1,8 +1,9 @@
 import string
 
+
 class ShortenerService:
 
-    ALPHABET = string.ascii_letters + string.digits # A-Z, a-z, 0-9
+    ALPHABET = string.ascii_letters + string.digits  # A-Z, a-z, 0-9
     BASE = len(ALPHABET)
 
     @classmethod
@@ -20,17 +21,16 @@ class ShortenerService:
         while number:
             number, rem = divmod(number, cls.BASE)
             arr.append(cls.ALPHABET[rem])
-        
+
         arr.reverse()
         return "".join(arr)
-    
+
     @classmethod
     def decode(cls, string_id: str) -> int:
-        """                                                                                                                                                                                                                                                                     
+        """
         Convert a base-62 string to a number
         """
         number = 0
         for char in string_id:
             number = number * cls.BASE + cls.ALPHABET.index(char)
         return number
-

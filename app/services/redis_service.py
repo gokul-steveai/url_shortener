@@ -38,19 +38,22 @@ class RedisService:
         """Standardized JSON storage using orjson for speed."""
         await self.redis.set(key, orjson.dumps(jsonable_encoder(value)), ex=ex)
 
-    async def _get_v_key(self, page: int, limit: int) -> str:
-        """Centralized key generation logic to remove redundancy."""
+    async def _get_v_key(self, page: int, limit: int, owner_id: int = None) -> str:
+        """Centralized key generation logic — namespaced per user."""
         v = await self.redis.get(self.VERSION_KEY) or b"1"
-        return f"links:v{v.decode()}:p:{page}:l:{limit}"
+        ns = f"u{owner_id}:" if owner_id else ""
+        return f"links:{ns}v{v.decode()}:p:{page}:l:{limit}"
 
     async def bump_version(self):
         """Instantly invalidates all paginated caches."""
         new_v = await self.redis.incr(self.VERSION_KEY)
         logger.info("cache.version_bump new_version=%s", new_v)
 
-    async def get_paginated_links(self, page: int, limit: int) -> Optional[dict]:
+    async def get_paginated_links(
+        self, page: int, limit: int, owner_id: int = None
+    ) -> Optional[dict]:
         """Fetch index and hydrated objects using MGET."""
-        key = await self._get_v_key(page, limit)
+        key = await self._get_v_key(page, limit, owner_id=owner_id)
         idx = await self.get_json(key)
 
         if not idx or "ids" not in idx:
@@ -68,12 +71,16 @@ class RedisService:
             return None
 
         links = [orjson.loads(o) for o in raw_objs]
-        logger.info("cache.hit.paginated page=%s limit=%s count=%s", page, limit, len(links))
+        logger.info(
+            "cache.hit.paginated page=%s limit=%s count=%s", page, limit, len(links)
+        )
         return links
 
-    async def set_paginated_links(self, page: int, limit: int, links: list, total: int):
+    async def set_paginated_links(
+        self, page: int, limit: int, links: list, total: int, owner_id: int = None
+    ):
         """Pipelined storage for both index and objects."""
-        key = await self._get_v_key(page, limit)
+        key = await self._get_v_key(page, limit, owner_id=owner_id)
         pipe = self.redis.pipeline()
 
         link_ids = []

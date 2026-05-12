@@ -64,13 +64,17 @@ class SummarizerService:
         try:
             text, meta_desc = await _scrape(url)
         except httpx.HTTPStatusError as e:
-            logger.error("scrape.http_error url=%s status=%s", url, e.response.status_code)
+            logger.error(
+                "scrape.http_error url=%s status=%s", url, e.response.status_code
+            )
             return None
         except httpx.RequestError as e:
             logger.error("scrape.request_error url=%s error=%s", url, e)
             return None
         except Exception as e:
-            logger.error("scrape.unexpected_error url=%s error=%s", url, e, exc_info=True)
+            logger.error(
+                "scrape.unexpected_error url=%s error=%s", url, e, exc_info=True
+            )
             return None
 
         if not text and not meta_desc:
