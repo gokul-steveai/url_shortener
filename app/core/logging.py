@@ -29,6 +29,7 @@ request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
 # Formatters
 # ---------------------------------------------------------------------------
 
+
 class _JSONFormatter(logging.Formatter):
     """Emit one JSON object per log line — ideal for log aggregation pipelines."""
 
@@ -45,10 +46,27 @@ class _JSONFormatter(logging.Formatter):
         # Merge any extra= fields the caller passed
         for key, val in record.__dict__.items():
             if key not in {
-                "name", "msg", "args", "levelname", "levelno", "pathname",
-                "filename", "module", "exc_info", "exc_text", "stack_info",
-                "lineno", "funcName", "created", "msecs", "relativeCreated",
-                "thread", "threadName", "processName", "process", "message",
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "message",
                 "taskName",
             }:
                 log[key] = val
@@ -59,20 +77,20 @@ class _DevFormatter(logging.Formatter):
     """Colored, human-readable output for local development."""
 
     _COLORS = {
-        "DEBUG":    "\033[36m",   # cyan
-        "INFO":     "\033[32m",   # green
-        "WARNING":  "\033[33m",   # yellow
-        "ERROR":    "\033[31m",   # red
-        "CRITICAL": "\033[35m",   # magenta
+        "DEBUG": "\033[36m",  # cyan
+        "INFO": "\033[32m",  # green
+        "WARNING": "\033[33m",  # yellow
+        "ERROR": "\033[31m",  # red
+        "CRITICAL": "\033[35m",  # magenta
     }
     _RESET = "\033[0m"
-    _DIM   = "\033[2m"
+    _DIM = "\033[2m"
 
     def format(self, record: logging.LogRecord) -> str:
-        color  = self._COLORS.get(record.levelname, "")
-        rid    = request_id_ctx.get("-")
+        color = self._COLORS.get(record.levelname, "")
+        rid = request_id_ctx.get("-")
         rid_part = f" {self._DIM}[{rid}]{self._RESET}" if rid != "-" else ""
-        base   = (
+        base = (
             f"{self._DIM}{self.formatTime(record, '%H:%M:%S')}{self._RESET} "
             f"{color}{record.levelname:<8}{self._RESET}"
             f"{rid_part} "
@@ -87,6 +105,7 @@ class _DevFormatter(logging.Formatter):
 # ---------------------------------------------------------------------------
 # Public setup function — call once at application startup
 # ---------------------------------------------------------------------------
+
 
 def setup_logging(level: str = "INFO", fmt: str = "dev") -> None:
     """
@@ -109,9 +128,7 @@ def setup_logging(level: str = "INFO", fmt: str = "dev") -> None:
     logging.basicConfig(
         level=getattr(logging, level.upper(), logging.INFO),
         handlers=[handler],
-        force=True,   # override any previously installed handlers
+        force=True,  # override any previously installed handlers
     )
 
-    logging.getLogger(__name__).info(
-        "logging.configured level=%s fmt=%s", level, fmt
-    )
+    logging.getLogger(__name__).info("logging.configured level=%s fmt=%s", level, fmt)

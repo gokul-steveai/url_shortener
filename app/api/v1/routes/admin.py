@@ -28,8 +28,17 @@ async def admin_stats(
         select(func.count(URL.id), func.coalesce(func.sum(URL.clicks), 0))
     )
     total_links, total_clicks = result.one()
-    logger.info("admin.stats users=%s links=%s clicks=%s", total_users, total_links, total_clicks)
-    return {"total_users": total_users, "total_links": total_links, "total_clicks": int(total_clicks)}
+    logger.info(
+        "admin.stats users=%s links=%s clicks=%s",
+        total_users,
+        total_links,
+        total_clicks,
+    )
+    return {
+        "total_users": total_users,
+        "total_links": total_links,
+        "total_clicks": int(total_clicks),
+    }
 
 
 @router.get(
@@ -88,7 +97,10 @@ async def set_user_role(
     "/users/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a user",
-    responses={403: {"description": "Admin access required"}, 404: {"description": "User not found"}},
+    responses={
+        403: {"description": "Admin access required"},
+        404: {"description": "User not found"},
+    },
 )
 async def delete_user(
     user_id: int,
@@ -98,7 +110,9 @@ async def delete_user(
     """Permanently deletes a user and all their links (CASCADE). **Admin only.**"""
     user = await CRUDUser.get_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     await db.delete(user)
     await db.commit()
     logger.info("admin.user_deleted user_id=%s", user_id)

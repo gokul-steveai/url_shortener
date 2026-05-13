@@ -31,7 +31,9 @@ class CRUDURL:
         db_url = result.scalars().first()
 
         if db_url:
-            await self.redis_client.set_json(f"url:{short_id}", db_url.original_url, ex=86400)
+            await self.redis_client.set_json(
+                f"url:{short_id}", db_url.original_url, ex=86400
+            )
             logger.info("redirect.db_hit short_id=%s — cached for 24h", short_id)
             return db_url.original_url
 
@@ -47,7 +49,9 @@ class CRUDURL:
         new_url.short_id = short_id
         await db.commit()
         await db.refresh(new_url)
-        logger.info("url.created id=%s short_id=%s owner_id=%s", new_url.id, short_id, owner_id)
+        logger.info(
+            "url.created id=%s short_id=%s owner_id=%s", new_url.id, short_id, owner_id
+        )
 
         await self.redis_client.bump_version()
         asyncio.create_task(self._fetch_and_store_summary(origin_url, short_id))
@@ -56,28 +60,43 @@ class CRUDURL:
     async def _fetch_and_store_summary(self, origin_url: str, short_id: str) -> None:
         try:
             from app.api.deps import async_session_maker
+
             with timer() as t:
                 summary = await SummarizerService.summarize(origin_url)
             if summary:
                 async with async_session_maker() as session:
-                    result = await session.execute(select(URL).where(URL.short_id == short_id))
+                    result = await session.execute(
+                        select(URL).where(URL.short_id == short_id)
+                    )
                     db_url = result.scalars().first()
                     if db_url:
                         db_url.summary = summary
                         await session.commit()
-                        logger.info("summary.stored short_id=%s elapsed_ms=%s", short_id, t.elapsed)
+                        logger.info(
+                            "summary.stored short_id=%s elapsed_ms=%s",
+                            short_id,
+                            t.elapsed,
+                        )
             else:
-                logger.warning("summary.empty short_id=%s elapsed_ms=%s", short_id, t.elapsed)
+                logger.warning(
+                    "summary.empty short_id=%s elapsed_ms=%s", short_id, t.elapsed
+                )
         except Exception as e:
-            logger.error("summary.failed short_id=%s error=%s", short_id, e, exc_info=True)
+            logger.error(
+                "summary.failed short_id=%s error=%s", short_id, e, exc_info=True
+            )
 
-    async def get_summary(self, db: AsyncSession, short_id: str, owner_id: int) -> Optional[str]:
+    async def get_summary(
+        self, db: AsyncSession, short_id: str, owner_id: int
+    ) -> Optional[str]:
         query = select(URL).where(URL.short_id == short_id, URL.owner_id == owner_id)
         result = await db.execute(query)
         db_url = result.scalars().first()
 
         if not db_url:
-            logger.warning("summary.not_found short_id=%s owner_id=%s", short_id, owner_id)
+            logger.warning(
+                "summary.not_found short_id=%s owner_id=%s", short_id, owner_id
+            )
             return None
 
         if db_url.summary:
@@ -90,29 +109,48 @@ class CRUDURL:
         if summary:
             db_url.summary = summary
             await db.commit()
-            logger.info("summary.fetched short_id=%s elapsed_ms=%s", short_id, t.elapsed)
+            logger.info(
+                "summary.fetched short_id=%s elapsed_ms=%s", short_id, t.elapsed
+            )
             return summary
 
-        logger.warning("summary.unavailable short_id=%s elapsed_ms=%s", short_id, t.elapsed)
+        logger.warning(
+            "summary.unavailable short_id=%s elapsed_ms=%s", short_id, t.elapsed
+        )
         return None
 
-    async def get_all(self, db: AsyncSession, page: int = 1, limit: int = 20, owner_id: int = None) -> list[dict]:
+    async def get_all(
+        self, db: AsyncSession, page: int = 1, limit: int = 20, owner_id: int = None
+    ) -> list[dict]:
         count_q = select(func.count(URL.id)).where(URL.owner_id == owner_id)
         total = (await db.execute(count_q)).scalar()
 
-        cached = await self.redis_client.get_paginated_links(page, limit, owner_id=owner_id)
+        cached = await self.redis_client.get_paginated_links(
+            page, limit, owner_id=owner_id
+        )
         if cached:
             return build_paginated_response(cached, total, page, limit)
 
-        logger.info("db.query.links page=%s limit=%s owner_id=%s", page, limit, owner_id)
-        query = select(URL).where(URL.owner_id == owner_id).offset((page - 1) * limit).limit(limit)
+        logger.info(
+            "db.query.links page=%s limit=%s owner_id=%s", page, limit, owner_id
+        )
+        query = (
+            select(URL)
+            .where(URL.owner_id == owner_id)
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
         result = await db.execute(query)
         links = result.scalars().all()
-        await self.redis_client.set_paginated_links(page, limit, links, len(links), owner_id=owner_id)
+        await self.redis_client.set_paginated_links(
+            page, limit, links, len(links), owner_id=owner_id
+        )
         logger.info("db.query.links.done count=%s total=%s", len(links), total)
         return build_paginated_response(jsonable_encoder(links), total, page, limit)
 
-    async def get_and_increment_clicks(self, db: AsyncSession, short_id: str) -> Optional[str]:
+    async def get_and_increment_clicks(
+        self, db: AsyncSession, short_id: str
+    ) -> Optional[str]:
         query = (
             update(URL)
             .where(URL.short_id == short_id)

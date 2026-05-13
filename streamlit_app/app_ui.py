@@ -282,7 +282,7 @@ if is_admin:
                             st.rerun()
 
     st.caption(
-        f"⟳ Auto-refreshes every 10s · Last updated {datetime.now().strftime('%H:%M:%S')}"
+        f"⟳ Auto-refreshes every 15s · Last updated {datetime.now().strftime('%H:%M:%S')}"
     )
     st.stop()
 
